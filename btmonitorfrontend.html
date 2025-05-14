@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>域名监测面板</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .polluted {
+      color: red;
+      font-weight: bold;
+    }
+    .clean {
+      color: green;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>域名监测系统</h2>
+  <table id="result-table">
+    <thead>
+      <tr>
+        <th>域名</th>
+        <th>城市</th>
+        <th>ASN</th>
+        <th>TCP(ms)</th>
+        <th>TLS(ms)</th>
+        <th>TTFB(ms)</th>
+        <th>Load(ms)</th>
+        <th>时间</th>
+        <th>DNS污染</th>
+      </tr>
+    </thead>
+    <tbody id="result-body">
+      <tr><td colspan="9">加载中...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function loadResults() {
+      const tbody = document.getElementById('result-body');
+      tbody.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/performance');
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9">暂无数据</td></tr>';
+          return;
+        }
+
+        for (const item of data) {
+          const { domain, city, asn, dns_polluted, history } = item;
+          const latest = history[history.length - 1]; // 取最近一次记录
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${domain}</td>
+            <td>${city}</td>
+            <td>${asn}</td>
+            <td>${latest.tcp}</td>
+            <td>${latest.tls}</td>
+            <td>${latest.ttfb}</td>
+            <td>${latest.load}</td>
+            <td>${new Date(latest.timestamp).toLocaleString()}</td>
+            <td class="${dns_polluted ? 'polluted' : 'clean'}">${dns_polluted ? '❌' : '✅'}</td>
+          `;
+          tbody.appendChild(row);
+        }
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9">加载失败：${err.message}</td></tr>`;
+      }
+    }
+
+    loadResults();
+  </script>
+</body>
+</html>
