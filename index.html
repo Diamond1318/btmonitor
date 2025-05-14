@@ -21,13 +21,24 @@
     th {
       background-color: #f0f0f0;
     }
-    .polluted {
-      color: red;
-      font-weight: bold;
+    .polluted { color: red; font-weight: bold; }
+    .clean { color: green; font-weight: bold; }
+    .history-row td {
+      background-color: #f9f9f9;
+      padding: 0;
     }
-    .clean {
-      color: green;
-      font-weight: bold;
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .history-table th, .history-table td {
+      border: 1px solid #ddd;
+      padding: 4px 8px;
+    }
+    button {
+      padding: 4px 10px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -45,10 +56,11 @@
         <th>Load(ms)</th>
         <th>时间</th>
         <th>DNS污染</th>
+        <th>历史</th>
       </tr>
     </thead>
     <tbody id="result-body">
-      <tr><td colspan="9">加载中...</td></tr>
+      <tr><td colspan="10">加载中...</td></tr>
     </tbody>
   </table>
 
@@ -62,16 +74,16 @@
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10">暂无数据</td></tr>';
           return;
         }
 
-        for (const item of data) {
+        data.forEach((item, idx) => {
           const { domain, city, asn, dns_polluted, history } = item;
-          const latest = history[history.length - 1]; // 取最近一次记录
+          const latest = history[history.length - 1];
 
-          const row = document.createElement('tr');
-          row.innerHTML = `
+          const mainRow = document.createElement('tr');
+          mainRow.innerHTML = `
             <td>${domain}</td>
             <td>${city}</td>
             <td>${asn}</td>
@@ -81,13 +93,45 @@
             <td>${latest.load}</td>
             <td>${new Date(latest.timestamp).toLocaleString()}</td>
             <td class="${dns_polluted ? 'polluted' : 'clean'}">${dns_polluted ? '❌' : '✅'}</td>
+            <td><button onclick="toggleHistory(${idx})">查看历史</button></td>
           `;
-          tbody.appendChild(row);
-        }
+
+          const historyRow = document.createElement('tr');
+          historyRow.classList.add('history-row');
+          historyRow.style.display = 'none';
+          historyRow.innerHTML = `<td colspan="10">
+            <table class="history-table">
+              <thead>
+                <tr><th>时间</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Load</th></tr>
+              </thead>
+              <tbody>
+                ${history.map(h => `
+                  <tr>
+                    <td>${new Date(h.timestamp).toLocaleString()}</td>
+                    <td>${h.tcp}</td>
+                    <td>${h.tls}</td>
+                    <td>${h.ttfb}</td>
+                    <td>${h.load}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </td>`;
+
+          tbody.appendChild(mainRow);
+          tbody.appendChild(historyRow);
+        });
 
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="9">加载失败：${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10">加载失败：${err.message}</td></tr>`;
       }
+    }
+
+    function toggleHistory(index) {
+      const tbody = document.getElementById('result-body');
+      const rows = tbody.querySelectorAll('tr');
+      const targetRow = rows[index * 2 + 1]; // 每个数据行后面就是历史行
+      targetRow.style.display = targetRow.style.display === 'none' ? '' : 'none';
     }
 
     loadResults();
