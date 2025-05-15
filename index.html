@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>域名监测面板</title>
+  <title>域名监测系统</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; table-layout: fixed; }
@@ -11,14 +11,22 @@
     .polluted { color: red; font-weight: bold; }
     .clean { color: green; font-weight: bold; }
     .error { color: orange; font-weight: bold; }
+    .domain-header { background-color: #e0e0e0; font-weight: bold; cursor: pointer; }
+    .history-row td { background-color: #f9f9f9; padding: 0; }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
     .history-table th, .history-table td {
       border: 1px solid #ddd;
       padding: 4px 8px;
     }
-    .history-row td { background-color: #f9f9f9; padding: 0; }
-    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    button { padding: 4px 10px; cursor: pointer; font-size: 12px; }
-    .domain-group { background-color: #e0e0e0; font-weight: bold; }
+    button {
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -40,7 +48,7 @@
         <th>时间</th>
         <th>DNS污染</th>
         <th>错误</th>
-        <th>查看</th>
+        <th>历史记录</th>
       </tr>
     </thead>
     <tbody id="result-body">
@@ -78,11 +86,17 @@
         let rowIndex = 0;
 
         for (const [domain, entries] of Object.entries(grouped)) {
-          // 一级标题
+          const domainId = `domain-${rowIndex}`;
+
+          // 域名行（可展开/折叠）
           const domainRow = document.createElement('tr');
-          domainRow.classList.add('domain-group');
-          domainRow.innerHTML = `<td colspan="15">${domain}</td>`;
+          domainRow.classList.add('domain-header');
+          domainRow.innerHTML = `<td colspan="15" onclick="toggleDomain('${domainId}')">▶ ${domain}</td>`;
           tbody.appendChild(domainRow);
+
+          const container = document.createElement('tbody');
+          container.id = domainId;
+          container.style.display = 'none';
 
           for (const item of entries) {
             const latest = item.history[item.history.length - 1] || {};
@@ -104,9 +118,9 @@
               <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
               <td class="${item.dns_polluted ? 'polluted' : 'clean'}">${item.dns_polluted ? '❌' : '✅'}</td>
               <td class="error">${latest.error ?? ''}</td>
-              <td><button onclick="toggleHistory(${rowIndex})">查看</button></td>
+              <td><button onclick="toggleHistory(${rowIndex})">历史记录</button></td>
             `;
-            tbody.appendChild(dataRow);
+            container.appendChild(dataRow);
 
             const historyRow = document.createElement('tr');
             historyRow.classList.add('history-row');
@@ -114,9 +128,7 @@
             historyRow.innerHTML = `<td colspan="15">
               <table class="history-table">
                 <thead>
-                  <tr>
-                    <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th><th>Redirect</th><th>Size</th><th>Speed</th><th>错误</th>
-                  </tr>
+                  <tr><th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th><th>Redirect</th><th>Size</th><th>Speed</th><th>错误</th></tr>
                 </thead>
                 <tbody>
                   ${item.history.map(h => `
@@ -137,9 +149,11 @@
                 </tbody>
               </table>
             </td>`;
-            tbody.appendChild(historyRow);
+            container.appendChild(historyRow);
             rowIndex++;
           }
+
+          tbody.appendChild(container);
         }
 
       } catch (err) {
@@ -147,10 +161,17 @@
       }
     }
 
+    function toggleDomain(id) {
+      const section = document.getElementById(id);
+      if (section) {
+        section.style.display = section.style.display === 'none' ? '' : 'none';
+      }
+    }
+
     function toggleHistory(index) {
       const tbody = document.getElementById('result-body');
       const rows = tbody.querySelectorAll('tr');
-      const targetRow = rows[index * 2 + 2]; // 每组域名后：标题、数据、历史，历史在+2
+      const targetRow = rows[index * 2 + 2]; // 假设每 domain 折叠块紧跟后是数据+历史
       if (targetRow && targetRow.classList.contains('history-row')) {
         targetRow.style.display = targetRow.style.display === 'none' ? '' : 'none';
       }
