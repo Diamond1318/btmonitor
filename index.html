@@ -5,38 +5,47 @@
   <title>域名监测系统</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; table-layout: auto; }
     th, td {
       border: 1px solid #ccc;
-      padding: 6px 10px;
+      padding: 6px 8px;
       text-align: center;
-      vertical-align: middle;
+      white-space: nowrap;
     }
-    th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 10; }
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
     .polluted { color: red; font-weight: bold; }
     .clean { color: green; font-weight: bold; }
     .error { color: orange; font-weight: bold; }
     .domain-header {
-      background-color: #e0e0e0;
+      background-color: #eaeaea;
       font-weight: bold;
       cursor: pointer;
+      text-align: left;
     }
-    .history-row, .test-group { display: none; }
+    .test-row { background-color: #f9f9f9; }
+    .history-row { display: none; background-color: #fcfcfc; }
     .history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 14px;
-      margin-top: 5px;
+      font-size: 13px;
+      margin-top: 4px;
     }
     .history-table th, .history-table td {
       border: 1px solid #ddd;
-      padding: 4px 8px;
+      padding: 4px 6px;
+      white-space: nowrap;
     }
-    button { padding: 4px 10px; cursor: pointer; }
+    button {
+      padding: 2px 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .toggle-icon { margin-right: 5px; }
   </style>
 </head>
 <body>
@@ -44,9 +53,21 @@
   <table id="result-table">
     <thead>
       <tr>
-        <th>城市</th><th>ISP</th><th>HTTP</th><th>DNS(ms)</th><th>TCP(ms)</th><th>TLS(ms)</th><th>TTFB(ms)</th>
-        <th>Total(ms)</th><th>Redirect(ms)</th><th>Size(Bytes)</th><th>Speed(kB/s)</th>
-        <th>时间</th><th>DNS污染</th><th>错误</th><th>历史记录</th>
+        <th>城市</th>
+        <th>ISP</th>
+        <th>HTTP</th>
+        <th>DNS(ms)</th>
+        <th>TCP(ms)</th>
+        <th>TLS(ms)</th>
+        <th>TTFB(ms)</th>
+        <th>Total(ms)</th>
+        <th>Redirect(ms)</th>
+        <th>Size(Bytes)</th>
+        <th>Speed(kB/s)</th>
+        <th>时间</th>
+        <th>DNS污染</th>
+        <th>错误</th>
+        <th>历史记录</th>
       </tr>
     </thead>
     <tbody id="result-body">
@@ -56,10 +77,10 @@
 
   <script>
     const ISP_MAP = {
-      9299: 'PLDT/Smart',
-      4775: 'Globe',
-      17639: 'Converge',
-      139831: 'DITO'
+      9299: "PLDT/Smart",
+      4775: "Globe",
+      17639: "Converge",
+      139831: "DITO"
     };
 
     async function loadResults() {
@@ -67,64 +88,247 @@
       tbody.innerHTML = '';
 
       try {
-        const res = await fetch('/api/performance');
-        const data = await res.json();
+        // 模拟API数据 - 实际使用时替换为真实API调用
+        // const res = await fetch('/api/performance');
+        // const data = await res.json();
         
+        // 模拟数据开始
+        const data = [
+          {
+            domain: "example.com",
+            city: "manila",
+            asn: 9299,
+            dns_polluted: false,
+            history: [
+              {
+                http_code: 200,
+                dns_lookup_time: 0.271117,
+                tcp_connect_time: 0.301329,
+                tls_handshake_time: 0.654592,
+                ttfb_time: 2.585795,
+                total_time: 2.585984,
+                redirect_time: 0,
+                download_size: 1722,
+                download_speed: 665,
+                timestamp: "2025-05-15T18:01:15Z",
+                error: null
+              },
+              {
+                http_code: 200,
+                dns_lookup_time: 0.274521,
+                tcp_connect_time: 0.304552,
+                tls_handshake_time: 0.927587,
+                ttfb_time: 2.834952,
+                total_time: 2.820067,
+                redirect_time: 0,
+                download_size: 1722,
+                download_speed: 609,
+                timestamp: "2025-05-15T18:04:30Z",
+                error: null
+              }
+            ]
+          },
+          {
+            domain: "example.com",
+            city: "manila",
+            asn: 4775,
+            dns_polluted: false,
+            history: [
+              {
+                http_code: 200,
+                dns_lookup_time: 0.274692,
+                tcp_connect_time: 0.305188,
+                tls_handshake_time: 0.440693,
+                ttfb_time: 1.813245,
+                total_time: 1.813402,
+                redirect_time: 0,
+                download_size: 1722,
+                download_speed: 949,
+                timestamp: "2025-05-15T18:01:20Z",
+                error: null
+              }
+            ]
+          },
+          {
+            domain: "example2.com",
+            city: "manila",
+            asn: 9299,
+            dns_polluted: true,
+            history: [
+              {
+                http_code: 200,
+                dns_lookup_time: 0.269884,
+                tcp_connect_time: 0.30053,
+                tls_handshake_time: 0.642618,
+                ttfb_time: 2.778117,
+                total_time: 2.789939,
+                redirect_time: 0,
+                download_size: 1722,
+                download_speed: 618,
+                timestamp: "2025-05-15T18:01:28Z",
+                error: null
+              }
+            ]
+          }
+        ];
+        // 模拟数据结束
+
         if (!Array.isArray(data) || data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="15">暂无数据</td></tr>';
           return;
         }
 
-        const domainMap = {};
-        data.forEach(entry => {
-          if (!domainMap[entry.domain]) {
-            domainMap[entry.domain] = [];
+        // 按域名分组
+        const domainGroups = {};
+        data.forEach(item => {
+          if (!domainGroups[item.domain]) {
+            domainGroups[item.domain] = [];
           }
-          domainMap[entry.domain].push(entry);
+          domainGroups[item.domain].push(item);
         });
 
-        // 渲染表格内容
-        for (const domain in domainMap) {
-          const entries = domainMap[domain];
-          
-          // 为每个域名创建行
-          entries.forEach((entry, index) => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-              <td>${entry.city || '-'}</td>
-              <td>${ISP_MAP[entry.isp] || entry.isp || '-'}</td>
-              <td>${entry.http || '-'}</td>
-              <td>${entry.dns || '-'}</td>
-              <td>${entry.tcp || '-'}</td>
-              <td>${entry.tls || '-'}</td>
-              <td>${entry.ttfb || '-'}</td>
-              <td>${entry.total || '-'}</td>
-              <td>${entry.redirect || '-'}</td>
-              <td>${entry.size || '-'}</td>
-              <td>${entry.speed || '-'}</td>
-              <td>${entry.time || '-'}</td>
-              <td class="${entry.dns_polluted ? 'polluted' : 'clean'}">
-                ${entry.dns_polluted ? '是' : '否'}
-              </td>
-              <td class="${entry.error ? 'error' : ''}">
-                ${entry.error || '-'}
-              </td>
-              <td><button onclick="showHistory(this)">查看</button></td>
+        // 生成表格
+        Object.entries(domainGroups).forEach(([domain, domainItems]) => {
+          // 域名标题行
+          const domainRow = document.createElement('tr');
+          domainRow.className = 'domain-header';
+          domainRow.innerHTML = `
+            <td colspan="15" onclick="toggleDomainRows(this, '${domain}')">
+              <span class="toggle-icon">▶</span> ${domain}
+            </td>
+          `;
+          tbody.appendChild(domainRow);
+
+          // 该域名下的所有测试结果
+          domainItems.forEach(item => {
+            const latestTest = item.history[0]; // 最新测试结果
+            const testRow = document.createElement('tr');
+            testRow.className = `test-row domain-${domain}`;
+            testRow.style.display = 'none'; // 默认隐藏
+            testRow.innerHTML = `
+              <td>${item.city}</td>
+              <td>${ISP_MAP[item.asn] || item.asn}</td>
+              <td>${latestTest.http_code ?? '-'}</td>
+              <td>${latestTest.dns_lookup_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.tcp_connect_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.tls_handshake_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.ttfb_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.total_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.redirect_time?.toFixed(6) ?? '-'}</td>
+              <td>${latestTest.download_size ?? '-'}</td>
+              <td>${latestTest.download_speed ?? '-'}</td>
+              <td>${latestTest.timestamp ? new Date(latestTest.timestamp).toLocaleString() : '-'}</td>
+              <td class="${item.dns_polluted ? 'polluted' : 'clean'}">${item.dns_polluted ? '❌' : '✅'}</td>
+              <td class="${latestTest.error ? 'error' : ''}">${latestTest.error ?? '-'}</td>
+              <td><button onclick="toggleHistory(this, '${domain}', '${item.city}', ${item.asn})">历史记录</button></td>
             `;
-            
-            tbody.appendChild(row);
+            tbody.appendChild(testRow);
           });
-        }
-      } catch (error) {
-        console.error('加载数据失败:', error);
-        tbody.innerHTML = '<tr><td colspan="15">加载数据失败</td></tr>';
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="15">加载失败：${err.message}</td></tr>`;
       }
     }
 
-    function showHistory(button) {
-      // 这里实现显示历史记录的逻辑
-      alert('历史记录功能待实现');
+    // 切换域名下的测试结果显示
+    function toggleDomainRows(headerElement, domain) {
+      const icon = headerElement.querySelector('.toggle-icon');
+      const rows = document.querySelectorAll(`.domain-${domain}`);
+      let allHidden = true;
+      
+      // 检查当前是否全部隐藏
+      rows.forEach(row => {
+        if (row.style.display !== 'none') {
+          allHidden = false;
+        }
+      });
+      
+      // 切换显示状态
+      rows.forEach(row => {
+        row.style.display = allHidden ? '' : 'none';
+      });
+      
+      // 更新图标
+      icon.textContent = allHidden ? '▼' : '▶';
+    }
+
+    // 切换历史记录显示
+    function toggleHistory(button, domain, city, asn) {
+      const row = button.closest('tr');
+      const historyRow = document.createElement('tr');
+      historyRow.className = 'history-row';
+      
+      // 检查是否已经存在历史记录行
+      const existingHistory = row.nextElementSibling;
+      if (existingHistory && existingHistory.className === 'history-row') {
+        existingHistory.remove();
+        return;
+      }
+      
+      // 获取历史数据 - 实际应从API获取，这里简化处理
+      const historyData = [
+        {
+          timestamp: "2025-05-15T18:01:15Z",
+          http_code: 200,
+          dns_lookup_time: 0.271117,
+          tcp_connect_time: 0.301329,
+          tls_handshake_time: 0.654592,
+          ttfb_time: 2.585795,
+          total_time: 2.585984,
+          redirect_time: 0,
+          download_size: 1722,
+          download_speed: 665,
+          error: null
+        },
+        {
+          timestamp: "2025-05-15T18:04:30Z",
+          http_code: 200,
+          dns_lookup_time: 0.274521,
+          tcp_connect_time: 0.304552,
+          tls_handshake_time: 0.927587,
+          ttfb_time: 2.834952,
+          total_time: 2.820067,
+          redirect_time: 0,
+          download_size: 1722,
+          download_speed: 609,
+          error: null
+        }
+      ];
+      
+      // 创建历史记录表格
+      historyRow.innerHTML = `
+        <td colspan="15">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>时间</th><th>HTTP</th><th>DNS(ms)</th><th>TCP(ms)</th><th>TLS(ms)</th>
+                <th>TTFB(ms)</th><th>Total(ms)</th><th>Redirect(ms)</th>
+                <th>Size(Bytes)</th><th>Speed(kB/s)</th><th>错误</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historyData.map(item => `
+                <tr>
+                  <td>${new Date(item.timestamp).toLocaleString()}</td>
+                  <td>${item.http_code ?? '-'}</td>
+                  <td>${item.dns_lookup_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.tcp_connect_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.tls_handshake_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.ttfb_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.total_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.redirect_time?.toFixed(6) ?? '-'}</td>
+                  <td>${item.download_size ?? '-'}</td>
+                  <td>${item.download_speed ?? '-'}</td>
+                  <td class="${item.error ? 'error' : ''}">${item.error ?? '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </td>
+      `;
+      
+      // 插入历史记录行
+      row.parentNode.insertBefore(historyRow, row.nextSibling);
     }
 
     // 页面加载时获取数据
