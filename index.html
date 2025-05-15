@@ -6,19 +6,19 @@
   <style>
     body { font-family: sans-serif; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; table-layout: fixed; }
-    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: center; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: center; word-break: break-word; }
     th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 2; }
     .polluted { color: red; font-weight: bold; }
     .clean { color: green; font-weight: bold; }
     .error { color: orange; font-weight: bold; }
+    .domain-header { background-color: #e0e0e0; font-weight: bold; cursor: pointer; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .history-table th, .history-table td {
       border: 1px solid #ddd;
       padding: 4px 8px;
     }
     .history-row td { background-color: #f9f9f9; padding: 0; }
-    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     button { padding: 4px 10px; cursor: pointer; font-size: 12px; }
-    .domain-group { background-color: #e0e0e0; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -26,26 +26,12 @@
   <table id="result-table">
     <thead>
       <tr>
-        <th>城市</th>
-        <th>ISP</th>
-        <th>HTTP</th>
-        <th>DNS(ms)</th>
-        <th>TCP(ms)</th>
-        <th>TLS(ms)</th>
-        <th>TTFB(ms)</th>
-        <th>Total(ms)</th>
-        <th>Redirect(ms)</th>
-        <th>Size(Bytes)</th>
-        <th>Speed(kB/s)</th>
-        <th>时间</th>
-        <th>DNS污染</th>
-        <th>错误</th>
-        <th>查看</th>
+        <th>城市</th><th>ISP</th><th>HTTP</th><th>DNS(ms)</th><th>TCP(ms)</th><th>TLS(ms)</th>
+        <th>TTFB(ms)</th><th>Total(ms)</th><th>Redirect(ms)</th><th>Size(Bytes)</th><th>Speed(kB/s)</th>
+        <th>时间</th><th>DNS污染</th><th>错误</th><th>历史记录</th>
       </tr>
     </thead>
-    <tbody id="result-body">
-      <tr><td colspan="15">加载中...</td></tr>
-    </tbody>
+    <tbody id="result-body"><tr><td colspan="15">加载中...</td></tr></tbody>
   </table>
 
   <script>
@@ -75,23 +61,24 @@
           grouped[item.domain].push(item);
         });
 
-        let rowIndex = 0;
+        let groupIndex = 0;
 
-        for (const [domain, entries] of Object.entries(grouped)) {
-          // 一级标题
-          const domainRow = document.createElement('tr');
-          domainRow.classList.add('domain-group');
-          domainRow.innerHTML = `<td colspan="15">${domain}</td>`;
-          tbody.appendChild(domainRow);
+        for (const [domain, records] of Object.entries(grouped)) {
+          const headerRow = document.createElement('tr');
+          headerRow.classList.add('domain-header');
+          headerRow.innerHTML = `<td colspan="15" onclick="toggleGroup(${groupIndex})">▶ ${domain}</td>`;
+          tbody.appendChild(headerRow);
 
-          for (const item of entries) {
-            const latest = item.history[item.history.length - 1] || {};
+          records.forEach((record, idx) => {
+            const latest = record.history.at(-1) || {};
             const isError = !!latest.error;
 
             const dataRow = document.createElement('tr');
+            dataRow.classList.add(`group-${groupIndex}`, 'data-row');
+            dataRow.style.display = 'none';
             dataRow.innerHTML = `
-              <td>${item.city}</td>
-              <td>${ISP_MAP[item.asn] || item.asn}</td>
+              <td>${record.city}</td>
+              <td>${ISP_MAP[record.asn] || record.asn}</td>
               <td>${latest.http_code ?? '-'}</td>
               <td>${latest.dns_lookup_time ?? '-'}</td>
               <td>${latest.tcp_connect_time ?? '-'}</td>
@@ -102,24 +89,24 @@
               <td>${latest.download_size ?? '-'}</td>
               <td>${latest.download_speed ?? '-'}</td>
               <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
-              <td class="${item.dns_polluted ? 'polluted' : 'clean'}">${item.dns_polluted ? '❌' : '✅'}</td>
+              <td class="${record.dns_polluted ? 'polluted' : 'clean'}">${record.dns_polluted ? '❌' : '✅'}</td>
               <td class="error">${latest.error ?? ''}</td>
-              <td><button onclick="toggleHistory(${rowIndex})">查看</button></td>
+              <td><button onclick="toggleHistory('${groupIndex}-${idx}')">历史记录</button></td>
             `;
             tbody.appendChild(dataRow);
 
             const historyRow = document.createElement('tr');
-            historyRow.classList.add('history-row');
+            historyRow.classList.add(`group-${groupIndex}`, 'history-row');
             historyRow.style.display = 'none';
+            historyRow.id = `history-${groupIndex}-${idx}`;
             historyRow.innerHTML = `<td colspan="15">
               <table class="history-table">
                 <thead>
-                  <tr>
-                    <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th><th>Redirect</th><th>Size</th><th>Speed</th><th>错误</th>
-                  </tr>
+                  <tr><th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th>
+                      <th>Redirect</th><th>Size</th><th>Speed</th><th>错误</th></tr>
                 </thead>
                 <tbody>
-                  ${item.history.map(h => `
+                  ${record.history.map(h => `
                     <tr>
                       <td>${h.timestamp ? new Date(h.timestamp).toLocaleString() : '-'}</td>
                       <td>${h.http_code ?? '-'}</td>
@@ -132,14 +119,14 @@
                       <td>${h.download_size ?? '-'}</td>
                       <td>${h.download_speed ?? '-'}</td>
                       <td class="error">${h.error ?? ''}</td>
-                    </tr>
-                  `).join('')}
+                    </tr>`).join('')}
                 </tbody>
               </table>
             </td>`;
             tbody.appendChild(historyRow);
-            rowIndex++;
-          }
+          });
+
+          groupIndex++;
         }
 
       } catch (err) {
@@ -147,12 +134,17 @@
       }
     }
 
-    function toggleHistory(index) {
-      const tbody = document.getElementById('result-body');
-      const rows = tbody.querySelectorAll('tr');
-      const targetRow = rows[index * 2 + 2]; // 每组域名后：标题、数据、历史，历史在+2
-      if (targetRow && targetRow.classList.contains('history-row')) {
-        targetRow.style.display = targetRow.style.display === 'none' ? '' : 'none';
+    function toggleGroup(index) {
+      const rows = document.querySelectorAll(`.group-${index}`);
+      rows.forEach(row => {
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+      });
+    }
+
+    function toggleHistory(id) {
+      const el = document.getElementById(`history-${id}`);
+      if (el) {
+        el.style.display = el.style.display === 'none' ? '' : 'none';
       }
     }
 
