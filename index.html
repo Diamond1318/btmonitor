@@ -44,12 +44,13 @@
         <th>Size(Bytes)</th>
         <th>Speed(kB/s)</th>
         <th>时间</th>
+        <th>DNS污染</th>
         <th>错误</th>
         <th>历史</th>
       </tr>
     </thead>
     <tbody id="result-body">
-      <tr><td colspan="14">加载中...</td></tr>
+      <tr><td colspan="15">加载中...</td></tr>
     </tbody>
   </table>
 
@@ -63,14 +64,13 @@
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="14">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="15">暂无数据</td></tr>';
           return;
         }
 
         data.forEach((item, idx) => {
-          const { domain, city, asn, dns_polluted, history } = item;
+          const { domain, city, asn, dns_polluted, history, error } = item;
           const latest = history[history.length - 1];
-          const isError = !!latest.error;
 
           const mainRow = document.createElement('tr');
           mainRow.innerHTML = `
@@ -86,6 +86,7 @@
             <td>${latest.download_size ?? '-'}</td>
             <td>${latest.download_speed ?? '-'}</td>
             <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
+            <td class="${dns_polluted ? 'polluted' : 'clean'}">${dns_polluted ? '❌' : '✅'}</td>
             <td class="error">${latest.error ?? ''}</td>
             <td><button onclick="toggleHistory(${idx})">查看历史</button></td>
           `;
@@ -93,12 +94,12 @@
           const historyRow = document.createElement('tr');
           historyRow.classList.add('history-row');
           historyRow.style.display = 'none';
-          historyRow.innerHTML = `<td colspan="14">
+          historyRow.innerHTML = `<td colspan="15">
             <table class="history-table">
               <thead>
                 <tr>
-                  <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th>
-                  <th>Size</th><th>Speed</th><th>错误</th>
+                  <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th>
+                  <th>Total</th><th>Size</th><th>Speed</th><th>错误</th>
                 </tr>
               </thead>
               <tbody>
@@ -125,7 +126,7 @@
         });
 
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="14">加载失败：${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="15">加载失败：${err.message}</td></tr>`;
       }
     }
 
