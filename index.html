@@ -4,29 +4,14 @@
   <meta charset="UTF-8" />
   <title>域名监测面板</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px 12px;
-      text-align: center;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: center; }
+    th { background-color: #f0f0f0; }
     .polluted { color: red; font-weight: bold; }
     .clean { color: green; font-weight: bold; }
-    .history-row td {
-      background-color: #f9f9f9;
-      padding: 0;
-    }
+    .error { color: orange; font-weight: bold; }
+    .history-row td { background-color: #f9f9f9; padding: 0; }
     .history-table {
       width: 100%;
       border-collapse: collapse;
@@ -50,17 +35,21 @@
         <th>域名</th>
         <th>城市</th>
         <th>ASN</th>
+        <th>HTTP</th>
+        <th>DNS(ms)</th>
         <th>TCP(ms)</th>
         <th>TLS(ms)</th>
         <th>TTFB(ms)</th>
-        <th>Load(ms)</th>
+        <th>Total(ms)</th>
+        <th>Size(Bytes)</th>
+        <th>Speed(kB/s)</th>
         <th>时间</th>
-        <th>DNS污染</th>
+        <th>错误</th>
         <th>历史</th>
       </tr>
     </thead>
     <tbody id="result-body">
-      <tr><td colspan="10">加载中...</td></tr>
+      <tr><td colspan="14">加载中...</td></tr>
     </tbody>
   </table>
 
@@ -74,44 +63,57 @@
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="14">暂无数据</td></tr>';
           return;
         }
 
         data.forEach((item, idx) => {
           const { domain, city, asn, dns_polluted, history } = item;
           const latest = history[history.length - 1];
+          const isError = !!latest.error;
 
           const mainRow = document.createElement('tr');
           mainRow.innerHTML = `
             <td>${domain}</td>
             <td>${city}</td>
             <td>${asn}</td>
-            <td>${latest.tcp}</td>
-            <td>${latest.tls}</td>
-            <td>${latest.ttfb}</td>
-            <td>${latest.load}</td>
-            <td>${new Date(latest.timestamp).toLocaleString()}</td>
-            <td class="${dns_polluted ? 'polluted' : 'clean'}">${dns_polluted ? '❌' : '✅'}</td>
+            <td>${latest.http_code ?? '-'}</td>
+            <td>${latest.dns_lookup_time ?? '-'}</td>
+            <td>${latest.tcp_connect_time ?? '-'}</td>
+            <td>${latest.tls_handshake_time ?? '-'}</td>
+            <td>${latest.ttfb_time ?? '-'}</td>
+            <td>${latest.total_time ?? '-'}</td>
+            <td>${latest.download_size ?? '-'}</td>
+            <td>${latest.download_speed ?? '-'}</td>
+            <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
+            <td class="error">${latest.error ?? ''}</td>
             <td><button onclick="toggleHistory(${idx})">查看历史</button></td>
           `;
 
           const historyRow = document.createElement('tr');
           historyRow.classList.add('history-row');
           historyRow.style.display = 'none';
-          historyRow.innerHTML = `<td colspan="10">
+          historyRow.innerHTML = `<td colspan="14">
             <table class="history-table">
               <thead>
-                <tr><th>时间</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Load</th></tr>
+                <tr>
+                  <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th><th>Total</th>
+                  <th>Size</th><th>Speed</th><th>错误</th>
+                </tr>
               </thead>
               <tbody>
                 ${history.map(h => `
                   <tr>
-                    <td>${new Date(h.timestamp).toLocaleString()}</td>
-                    <td>${h.tcp}</td>
-                    <td>${h.tls}</td>
-                    <td>${h.ttfb}</td>
-                    <td>${h.load}</td>
+                    <td>${h.timestamp ? new Date(h.timestamp).toLocaleString() : '-'}</td>
+                    <td>${h.http_code ?? '-'}</td>
+                    <td>${h.dns_lookup_time ?? '-'}</td>
+                    <td>${h.tcp_connect_time ?? '-'}</td>
+                    <td>${h.tls_handshake_time ?? '-'}</td>
+                    <td>${h.ttfb_time ?? '-'}</td>
+                    <td>${h.total_time ?? '-'}</td>
+                    <td>${h.download_size ?? '-'}</td>
+                    <td>${h.download_speed ?? '-'}</td>
+                    <td class="error">${h.error ?? ''}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -123,14 +125,14 @@
         });
 
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="10">加载失败：${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14">加载失败：${err.message}</td></tr>`;
       }
     }
 
     function toggleHistory(index) {
       const tbody = document.getElementById('result-body');
       const rows = tbody.querySelectorAll('tr');
-      const targetRow = rows[index * 2 + 1]; // 每个数据行后面就是历史行
+      const targetRow = rows[index * 2 + 1];
       targetRow.style.display = targetRow.style.display === 'none' ? '' : 'none';
     }
 
