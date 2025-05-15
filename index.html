@@ -2,25 +2,25 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>域名监测面板</title>
+  <title>域名监测系统</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: center; }
-    th { background-color: #f0f0f0; }
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
     .polluted { color: red; font-weight: bold; }
     .clean { color: green; font-weight: bold; }
     .error { color: orange; font-weight: bold; }
-    .history-row td { background-color: #f9f9f9; padding: 0; }
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
+    .sub-table th, .sub-table td {
       font-size: 14px;
-    }
-    .history-table th, .history-table td {
-      border: 1px solid #ddd;
       padding: 4px 8px;
     }
+    .sub-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     button {
       padding: 4px 10px;
       cursor: pointer;
@@ -33,28 +33,23 @@
     <thead>
       <tr>
         <th>域名</th>
-        <th>城市</th>
-        <th>ASN</th>
-        <th>HTTP</th>
-        <th>DNS(ms)</th>
-        <th>TCP(ms)</th>
-        <th>TLS(ms)</th>
-        <th>TTFB(ms)</th>
-        <th>Total(ms)</th>
-        <th>Size(Bytes)</th>
-        <th>Speed(kB/s)</th>
-        <th>时间</th>
-        <th>DNS污染</th>
-        <th>错误</th>
-        <th>历史</th>
+        <th>污染</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody id="result-body">
-      <tr><td colspan="15">加载中...</td></tr>
+      <tr><td colspan="3">加载中...</td></tr>
     </tbody>
   </table>
 
   <script>
+    const ASN_MAP = {
+      9299: 'PLDT/Smart',
+      4775: 'GLOBE',
+      17639: 'Converge',
+      139831: 'DITO'
+    };
+
     async function loadResults() {
       const tbody = document.getElementById('result-body');
       tbody.innerHTML = '';
@@ -64,77 +59,72 @@
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="15">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="3">暂无数据</td></tr>';
           return;
         }
 
-        data.forEach((item, idx) => {
-          const { domain, city, asn, dns_polluted, history, error } = item;
-          const latest = history[history.length - 1];
+        const grouped = {};
+        for (const item of data) {
+          if (!grouped[item.domain]) grouped[item.domain] = { polluted: item.dns_polluted, list: [] };
+          grouped[item.domain].list.push(item);
+        }
 
-          const mainRow = document.createElement('tr');
-          mainRow.innerHTML = `
-            <td>${domain}</td>
-            <td>${city}</td>
-            <td>${asn}</td>
-            <td>${latest.http_code ?? '-'}</td>
-            <td>${latest.dns_lookup_time ?? '-'}</td>
-            <td>${latest.tcp_connect_time ?? '-'}</td>
-            <td>${latest.tls_handshake_time ?? '-'}</td>
-            <td>${latest.ttfb_time ?? '-'}</td>
-            <td>${latest.total_time ?? '-'}</td>
-            <td>${latest.download_size ?? '-'}</td>
-            <td>${latest.download_speed ?? '-'}</td>
-            <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
-            <td class="${dns_polluted ? 'polluted' : 'clean'}">${dns_polluted ? '❌' : '✅'}</td>
-            <td class="error">${latest.error ?? ''}</td>
-            <td><button onclick="toggleHistory(${idx})">查看历史</button></td>
+        Object.entries(grouped).forEach(([domain, group], index) => {
+          const trMain = document.createElement('tr');
+          trMain.innerHTML = `
+            <td><strong>${domain}</strong></td>
+            <td class="${group.polluted ? 'polluted' : 'clean'}">${group.polluted ? '❌' : '✅'}</td>
+            <td><button onclick="toggleDetails(${index})">展开</button></td>
           `;
 
-          const historyRow = document.createElement('tr');
-          historyRow.classList.add('history-row');
-          historyRow.style.display = 'none';
-          historyRow.innerHTML = `<td colspan="15">
-            <table class="history-table">
+          const trDetails = document.createElement('tr');
+          trDetails.style.display = 'none';
+          trDetails.classList.add('details-row');
+          trDetails.innerHTML = `<td colspan="3">
+            <table class="sub-table">
               <thead>
                 <tr>
-                  <th>时间</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th><th>TTFB</th>
-                  <th>Total</th><th>Size</th><th>Speed</th><th>错误</th>
+                  <th>城市</th><th>运营商</th><th>HTTP</th><th>DNS</th><th>TCP</th><th>TLS</th>
+                  <th>TTFB</th><th>Total</th><th>Size</th><th>Speed</th><th>时间</th><th>错误</th>
                 </tr>
               </thead>
               <tbody>
-                ${history.map(h => `
-                  <tr>
-                    <td>${h.timestamp ? new Date(h.timestamp).toLocaleString() : '-'}</td>
-                    <td>${h.http_code ?? '-'}</td>
-                    <td>${h.dns_lookup_time ?? '-'}</td>
-                    <td>${h.tcp_connect_time ?? '-'}</td>
-                    <td>${h.tls_handshake_time ?? '-'}</td>
-                    <td>${h.ttfb_time ?? '-'}</td>
-                    <td>${h.total_time ?? '-'}</td>
-                    <td>${h.download_size ?? '-'}</td>
-                    <td>${h.download_speed ?? '-'}</td>
-                    <td class="error">${h.error ?? ''}</td>
-                  </tr>
-                `).join('')}
+                ${group.list.map(item => {
+                  const latest = item.history[item.history.length - 1];
+                  return `
+                    <tr>
+                      <td>${item.city}</td>
+                      <td>${ASN_MAP[item.asn] ?? item.asn}</td>
+                      <td>${latest.http_code ?? '-'}</td>
+                      <td>${latest.dns_lookup_time ?? '-'}</td>
+                      <td>${latest.tcp_connect_time ?? '-'}</td>
+                      <td>${latest.tls_handshake_time ?? '-'}</td>
+                      <td>${latest.ttfb_time ?? '-'}</td>
+                      <td>${latest.total_time ?? '-'}</td>
+                      <td>${latest.download_size ?? '-'}</td>
+                      <td>${latest.download_speed ?? '-'}</td>
+                      <td>${latest.timestamp ? new Date(latest.timestamp).toLocaleString() : '-'}</td>
+                      <td class="error">${latest.error ?? ''}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </td>`;
 
-          tbody.appendChild(mainRow);
-          tbody.appendChild(historyRow);
+          tbody.appendChild(trMain);
+          tbody.appendChild(trDetails);
         });
 
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="15">加载失败：${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3">加载失败：${err.message}</td></tr>`;
       }
     }
 
-    function toggleHistory(index) {
-      const tbody = document.getElementById('result-body');
-      const rows = tbody.querySelectorAll('tr');
-      const targetRow = rows[index * 2 + 1];
-      targetRow.style.display = targetRow.style.display === 'none' ? '' : 'none';
+    function toggleDetails(index) {
+      const rows = document.querySelectorAll('.details-row');
+      const target = rows[index];
+      if (target) target.style.display = target.style.display === 'none' ? '' : 'none';
     }
 
     loadResults();
