@@ -66,13 +66,69 @@
       const tbody = document.getElementById('result-body');
       tbody.innerHTML = '';
 
-      const res = await fetch('/api/performance');
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15">暂无数据</td></tr>';
-        return;
-      }
+      try {
+        const res = await fetch('/api/performance');
+        const data = await res.json();
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="15">暂无数据</td></tr>';
+          return;
+        }
 
-      const domainMap = {};
-      data.forEach(entry => {
-        if (!domainMap[entry.domain])
+        const domainMap = {};
+        data.forEach(entry => {
+          if (!domainMap[entry.domain]) {
+            domainMap[entry.domain] = [];
+          }
+          domainMap[entry.domain].push(entry);
+        });
+
+        // 渲染表格内容
+        for (const domain in domainMap) {
+          const entries = domainMap[domain];
+          
+          // 为每个域名创建行
+          entries.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+              <td>${entry.city || '-'}</td>
+              <td>${ISP_MAP[entry.isp] || entry.isp || '-'}</td>
+              <td>${entry.http || '-'}</td>
+              <td>${entry.dns || '-'}</td>
+              <td>${entry.tcp || '-'}</td>
+              <td>${entry.tls || '-'}</td>
+              <td>${entry.ttfb || '-'}</td>
+              <td>${entry.total || '-'}</td>
+              <td>${entry.redirect || '-'}</td>
+              <td>${entry.size || '-'}</td>
+              <td>${entry.speed || '-'}</td>
+              <td>${entry.time || '-'}</td>
+              <td class="${entry.dns_polluted ? 'polluted' : 'clean'}">
+                ${entry.dns_polluted ? '是' : '否'}
+              </td>
+              <td class="${entry.error ? 'error' : ''}">
+                ${entry.error || '-'}
+              </td>
+              <td><button onclick="showHistory(this)">查看</button></td>
+            `;
+            
+            tbody.appendChild(row);
+          });
+        }
+      } catch (error) {
+        console.error('加载数据失败:', error);
+        tbody.innerHTML = '<tr><td colspan="15">加载数据失败</td></tr>';
+      }
+    }
+
+    function showHistory(button) {
+      // 这里实现显示历史记录的逻辑
+      alert('历史记录功能待实现');
+    }
+
+    // 页面加载时获取数据
+    document.addEventListener('DOMContentLoaded', loadResults);
+  </script>
+</body>
+</html>
